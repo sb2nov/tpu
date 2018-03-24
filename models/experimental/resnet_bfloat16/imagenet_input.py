@@ -31,11 +31,8 @@ def image_serving_input_fn():
 
   def _preprocess_image(image_bytes):
     """Preprocess a single raw image."""
-    image = tf.image.decode_image(tf.reshape(image_bytes, shape=[]), 3)
-    image = tf.image.convert_image_dtype(image, dtype=tf.float32)
-
     image = resnet_preprocessing.preprocess_image(
-        image=image, is_training=False)
+        image_buffer=image_bytes, is_training=False)
     return image
 
   image_bytes_list = tf.placeholder(
@@ -97,12 +94,8 @@ class ImageNetInput(object):
 
     parsed = tf.parse_single_example(value, keys_to_features)
 
-    image = tf.image.decode_image(
-        tf.reshape(parsed['image/encoded'], shape=[]), 3)
-    image = tf.image.convert_image_dtype(image, dtype=tf.float32)
-
     image = self.image_preprocessing_fn(
-        image=image,
+        image_buffer=parsed['image/encoded'],
         is_training=self.is_training,
     )
 
@@ -110,7 +103,7 @@ class ImageNetInput(object):
     label = tf.cast(
         tf.reshape(parsed['image/class/label'], shape=[]), dtype=tf.int32) - 1
 
-    image = tf.cast(image, tf.bfloat16)
+    image = tf.cast(image, tf.float32)
     return image, label
 
   def input_fn(self, params):

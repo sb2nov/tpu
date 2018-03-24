@@ -28,6 +28,7 @@ import tensorflow as tf
 
 import imagenet_input
 import resnet_model
+import resnet_preprocessing
 from tensorflow.contrib import summary
 from tensorflow.contrib.tpu.python.tpu import tpu_config
 from tensorflow.contrib.tpu.python.tpu import tpu_estimator
@@ -245,15 +246,18 @@ def resnet_model_fn(features, labels, mode, params):
   if isinstance(features, dict):
     features = features['feature']
 
+  if FLAGS.use_transpose:
+    features = tf.transpose(features, [3, 0, 1, 2])  # HWCN to NHCW
+
+  features = resnet_preprocessing.normalize(features)
+  features = tf.cast(features, tf.bfloat16)
+
   # In most cases, the default data format NCHW instead of NHWC should be
   # used for a significant performance boost on GPU/TPU. NHWC should be used
   # only if the network needs to be run on CPU since the pooling operations
   # are only supported on NHWC.
   if FLAGS.data_format == 'channels_first':
     features = tf.transpose(features, [0, 3, 1, 2])
-
-  if FLAGS.use_transpose:
-    features = tf.transpose(features, [3, 0, 1, 2])  # HWCN to NHCW
 
   with tf.variable_scope('cg', custom_getter=get_custom_getter()):
     network = resnet_model.resnet_v1(
